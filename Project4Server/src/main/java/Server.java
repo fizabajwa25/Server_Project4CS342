@@ -1,9 +1,11 @@
+import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.function.Consumer;
 
 import javafx.application.Platform;
@@ -93,8 +95,11 @@ public class Server{
 					
 				 while(true) {
 					    try {
-					    	String data = in.readObject().toString();
+					    	Message data = (Message) in.readObject();
 					    	callback.accept("client: " + count + " sent: " + data);
+							System.out.println("type sent from server:"+data.getType());
+							HandleData(data);
+//							System.out.println("sent from client" + Arrays.deepToString(data.getBoardState()));
 					    	updateClients("client #"+count+" said: "+data);
 					    	
 					    	}
@@ -106,8 +111,35 @@ public class Server{
 					    }
 					}
 				}//end of run
-			
-			
+
+			private void HandleData(Message data) throws IOException {
+				switch (data.getType()) {
+					case SET_BOARD:
+						// send back board and message type "GET_BOARD"
+						handleSetBoard(data);
+						break;
+					default:
+						callback.accept("Waiting for proper message from client #" + count);
+						break;
+				}
+			}
+			private void handleSetBoard(Message data) throws IOException {
+				// Process the board sent by the client
+				int[][] boardState = data.getBoardState();
+				// Perform any necessary operations with the board, such as validation, saving, etc.
+
+				// Send the processed board back to the client
+				for (ClientThread client : clients) {
+					client.sendBoard(boardState);
+				}
+			}
+
+			public void sendBoard(int[][] boardState) throws IOException {
+				Message response = new Message(Message.MessageType.GET_BOARD, boardState);
+				out.writeObject(response);
+			}
+
+
 		}//end of client thread
 }
 
