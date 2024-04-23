@@ -4,13 +4,19 @@ public class Message implements Serializable {
     private static final long serialVersionUID = 42L;
     private int[][] boardState;
     private MessageType type;
+    private int playerIndex;
+    private int row;
+    private int col;
+
+
 
     public enum MessageType {
         SET_BOARD,
         GET_BOARD,
         TRY_MOVE,
         HIT,
-        MISS
+        SHOT_FIRED,
+        TURN, MISS
     }
 
     public Message(MessageType type) {
@@ -36,5 +42,29 @@ public class Message implements Serializable {
 
     public void setBoardState(int[][] boardState) {
         this.boardState = boardState;
+    }
+
+    public int getPlayerIndex() {
+        return playerIndex;
+    }
+
+    public void setPlayerIndex(int playerIndex) {
+        this.playerIndex = playerIndex;
+    }
+
+    public int getRow() {
+        return row;
+    }
+
+    public void setRow(int row) {
+        this.row = row;
+    }
+
+    public int getCol() {
+        return col;
+    }
+
+    public void setCol(int col) {
+        this.col = col;
     }
 }
