@@ -2,6 +2,7 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
+import java.util.Random;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayList;
@@ -17,10 +18,18 @@ import javafx.scene.control.ListView;
 
 public class Server{
 
+	private static final int GRID_SIZE = 10;
+	private static final int EMPTY = 0;
+	private static final int SHIP = 1;
+	private static final int HIT = 2;
 	int count = 1;	
 	ArrayList<ClientThread> clients = new ArrayList<ClientThread>();
 	TheServer server;
 	private Consumer<Serializable> callback;
+
+	private int[][][] playerGrids = new int[2][GRID_SIZE][GRID_SIZE];
+	private boolean[][][] shotsFired = new boolean[2][GRID_SIZE][GRID_SIZE];
+	private boolean gameActive = false;
 	
 	
 	Server(Consumer<Serializable> call){
@@ -140,8 +149,107 @@ public class Server{
 			}
 
 
+			private void startGame() {
+				generateRandomShips();
+				gameActive = true;
+			}
+
+			private void generateRandomShips() {
+				Random random = new Random();
+				int[] shipSizes = {5, 4, 3, 3, 2}; // Ship sizes allowed
+
+				for (int playerIndex = 0; playerIndex < 2; playerIndex++) {
+					int[][] ownGrid = playerGrids[playerIndex];
+					int[][] opponentGrid = playerGrids[(playerIndex + 1) % 2];
+
+					for (int shipSize : shipSizes) {
+						int startX = random.nextInt(GRID_SIZE);
+						int startY = random.nextInt(GRID_SIZE);
+						boolean isHorizontal = random.nextBoolean();
+
+						// Check if ship size is valid
+						if (shipSize < 2 || shipSize > 5) {
+							throw new IllegalArgumentException("Invalid ship size: " + shipSize);
+						}
+
+						if (isShipPlacementValid(ownGrid, startX, startY, shipSize, isHorizontal)) {
+							placeShip(ownGrid, startX, startY, shipSize, isHorizontal);
+						}
+					}
+
+					generateRandomShipsForOpponent(opponentGrid);
+				}
+			}
+
+			private void generateRandomShipsForOpponent(int[][] opponentGrid) {
+				Random random = new Random();
+				int[] shipSizes = {5, 4, 3, 3, 2}; // Ship sizes allowed
+
+				for (int shipSize : shipSizes) {
+					int startX = random.nextInt(GRID_SIZE);
+					int startY = random.nextInt(GRID_SIZE);
+					boolean isHorizontal = random.nextBoolean();
+
+					// Check if ship size is valid
+					if (shipSize < 2 || shipSize > 5) {
+						throw new IllegalArgumentException("Invalid ship size: " + shipSize);
+					}
+
+					if (isShipPlacementValid(opponentGrid, startX, startY, shipSize, isHorizontal)) {
+						placeShip(opponentGrid, startX, startY, shipSize, isHorizontal);
+					}
+				}
+			}
+
+			private boolean isShipPlacementValid(int[][] grid, int startX, int startY, int shipSize, boolean isHorizontal) {
+				if (isHorizontal && startX + shipSize > GRID_SIZE) {
+					return false;
+				}
+				if (!isHorizontal && startY + shipSize > GRID_SIZE) {
+					return false;
+				}
+				for (int i = 0; i < shipSize; i++) {
+					int row = isHorizontal ? startY : startY + i;
+					int col = isHorizontal ? startX + i : startX;
+					if (grid[row][col] != EMPTY) {
+						return false;
+					}
+				}
+				return true;
+			}
+
+			private void placeShip(int[][] grid, int startX, int startY, int shipSize, boolean isHorizontal) {
+				for (int i = 0; i < shipSize; i++) {
+					int row = isHorizontal ? startY : startY + i;
+					int col = isHorizontal ? startX + i : startX;
+					grid[row][col] = SHIP;
+				}
+			}
+
+			public boolean handleShot(int playerIndex, int row, int col) {
+				if (!gameActive) {
+					return false; // Game not active
+				}
+
+				if (shotsFired[playerIndex][row][col]) {
+					return false; // Spot already hit
+				}
+
+				int opponentIndex = (playerIndex + 1) % 2;
+				int[][] opponentGrid = playerGrids[opponentIndex];
+				shotsFired[playerIndex][row][col] = true;
+
+				if (opponentGrid[row][col] == SHIP) {
+					opponentGrid[row][col] = HIT;
+					return true; // Hit
+				} else {
+					return false; // Miss
+				}
+			}
+		}
+
+
 		}//end of client thread
-}
 
 
 	
