@@ -47,6 +47,37 @@ public class Server {
 		server = new TheServer();
 		server.start();
 	}
+	public void handleNewClient(Socket clientSocket) {
+		// Create a new ClientThread instance for the new client
+		ClientThread newClient = new ClientThread(clientSocket, count);
+
+		// Add the new client to the list of connected clients
+		clients.add(newClient);
+
+		// Assign opponents to the new client and existing clients
+		assignOpponents();
+
+		// Start the client thread
+		newClient.start();
+
+		// Increment the client count
+		count++;
+	}
+
+	private void assignOpponents() {
+		// Check if there are at least two clients connected
+		if (clients.size() >= 2) {
+			// Get the last two clients from the list
+			ClientThread client1 = clients.get(clients.size() - 1);
+			ClientThread client2 = clients.get(clients.size() - 2);
+
+			// Assign each client as an opponent to the other
+			client1.setOpponent(client2);
+			client2.setOpponent(client1);
+		}
+		// You can extend this logic to handle more complex scenarios
+	}
+
 
 
 	public class TheServer extends Thread {
@@ -63,6 +94,7 @@ public class Server {
 					callback.accept("client has connected to server: " + "client #" + count);
 					clients.add(c);
 					c.start();
+					assignOpponents();
 
 					count++;
 
@@ -98,6 +130,21 @@ public class Server {
 			}
 		}
 
+		private ClientThread opponent;
+
+		public void setOpponent(ClientThread opponent) {
+			this.opponent = opponent;
+		}
+		private int[][] playerBoardState;
+
+		public void setPlayerBoardState(int[][] boardState) {
+			this.playerBoardState = boardState;
+		}
+
+		public int[][] getPlayerBoardState() {
+			return playerBoardState;
+		}
+
 
 
 		public void run() {
@@ -116,7 +163,7 @@ public class Server {
 				try {
 					Message data = (Message) in.readObject();
 					callback.accept("client: " + count + " sent: " + data);
-					System.out.println("type sent from server:" + data.getType());
+					System.out.println("type sent from client:" + data.getType());
 					HandleData(data);
 //							System.out.println("sent from client" + Arrays.deepToString(data.getBoardState()));
 					updateClients("client #" + count + " said: " + data);
@@ -136,8 +183,11 @@ public class Server {
 					// send back board and message type "GET_BOARD"
 					handleSetBoard(data);
 					break;
-				case SET_OPPONENT_BOARD:
-					handleSetOpponentBoard(data);
+//				case SET_OPPONENT_BOARD:
+//					handleSetOpponentBoard(data);
+//					break;
+				case SET_BOARD_PLAYER_VS_PLAYER:
+					handleSetBoardPlayerVsPlayer(data);
 					break;
 				case SHOT_FIRED:
 					// Extract shot data from the message
@@ -189,18 +239,107 @@ public class Server {
 			out.writeObject(response);
 		}
 
-		public void sendOppBoard(int[][] boardState) throws IOException {
-			Message response = new Message(Message.MessageType.GET_OPPONENT_BOARD, boardState);
-			out.writeObject(response);
+		private void handleSetBoardPlayerVsPlayer(Message data) throws IOException {
+			System.out.println("do i reach set board pvp");
+			// Retrieve the client's index
+			int clientIndex = clients.indexOf(this);
+
+			// Retrieve the opponent's index
+			int opponentIndex = (clientIndex == 0) ? 1 : 0;
+
+			// Get the board states for both the client and the opponent
+			int[][] clientBoardState = data.getBoardState();
+
+			// Set the board state for both the client and the opponent
+			setPlayerBoardState(clientBoardState);
+			clients.get(opponentIndex).setPlayerBoardState(clientBoardState);
+
+			// Send messages containing both board states to the client and the opponent
+			sendBoardPlayervPlayer(clientBoardState);
+			clients.get(opponentIndex).sendBoardPlayervPlayer(clientBoardState);
+			System.out.println("opponent's board: " + Arrays.deepToString(clientBoardState));
+			System.out.println("client's board: " + Arrays.deepToString(clientBoardState));
 		}
 
-		private void handleSetOpponentBoard(Message data) throws IOException {
-			int[][] opponentBoardState = generateRandomBoard();
-			for (ClientThread client : clients) {
-				client.sendOppBoard(opponentBoardState);
-				System.out.println("sending board: " + Arrays.deepToString(opponentBoardState));
-			}
+//		public void setPlayerBoardState(int[][] boardState) {
+//			this.playerBoardState = boardState;
+//		}
+
+		public void setOpponentBoardState(int[][] boardState) {
+			// Set the board state for the opponent
+			this.opponent.playerBoardState = boardState;
 		}
+		public void sendBoardPlayervPlayer(int[][] boardState) throws IOException {
+			// Create a message containing the board state
+			Message response = new Message(Message.MessageType.GET_BOARD_PLAYER_VS_PLAYER, boardState);
+
+			// Send the message to the client
+			out.writeObject(response);
+
+			// Print confirmation message
+			System.out.println("Sending board state to player: " + Arrays.deepToString(boardState));
+		}
+//		private void handleSetBoardHuman(Message data) throws IOException {
+//			System.out.println("do i reach set baord human?");
+//			int[][] boardState = data.getBoardState();
+//
+//			for (ClientThread client : clients) {
+//				client.sendBoardHuman(boardState);
+//			}
+//		}
+//		public void sendBoardHuman(int[][] boardState) throws IOException {
+//			Message response = new Message(Message.MessageType.GET_BOARD_PLAYER_VS_PLAYER, boardState);
+//			out.writeObject(response);
+//		}
+//	private void handleSetBoardPlayerVsPlayer(Message data) throws IOException {
+//			System.out.println("do i reach set board pvp");
+//		// Retrieve the client's index
+//		int clientIndex = clients.indexOf(this);
+//
+//		// Retrieve the opponent's index
+//		int opponentIndex = (clientIndex == 0) ? 1 : 0;
+//
+//		// Get the board states for both the client and the opponent
+//		int[][] clientBoardState = data.getBoardState();
+//		int[][] opponentBoardState = clients.get(opponentIndex).getPlayerBoardState();
+//
+//		// Send messages containing both board states to the client and the opponent
+//		sendBoardPlayervPlayer(clientBoardState);
+//		clients.get(opponentIndex).sendBoardPlayervPlayer(opponentBoardState);
+//		System.out.println("opponents board: "+ Arrays.deepToString(opponentBoardState));
+//		System.out.println("clients board: "+ Arrays.deepToString(clientBoardState));
+//	}
+//		public void sendBoardPlayervPlayer(int[][] boardState) throws IOException {
+//			Message response = new Message(Message.MessageType.GET_BOARD_PLAYER_VS_PLAYER, boardState);
+//			out.writeObject(response);
+//			System.out.println("sending out: " +response.getType());
+//		}
+
+//		private void handleSetOpponentBoard(Message data) throws IOException {
+//			int[][] opponentBoardState = generateRandomBoard();
+//			sendOpponentBoard(opponentBoardState);
+//			System.out.println("Sending opponent board: " + Arrays.deepToString(opponentBoardState));
+//		}
+//
+//		private void sendOpponentBoard(int[][] boardState) throws IOException {
+//			Message response = new Message(Message.MessageType.GET_OPPONENT_BOARD, boardState);
+//			out.writeObject(response);
+//		}
+
+
+
+		//		public void sendOppBoard(int[][] boardState) throws IOException {
+//			Message response = new Message(Message.MessageType.GET_OPPONENT_BOARD, boardState);
+//			out.writeObject(response);
+//		}
+//
+//		private void handleSetOpponentBoard(Message data) throws IOException {
+//			int[][] opponentBoardState = generateRandomBoard();
+//			for (ClientThread client : clients) {
+//				client.sendOppBoard(opponentBoardState);
+//				System.out.println("sending board: " + Arrays.deepToString(opponentBoardState));
+//			}
+//		}
 		private int[][] generateRandomBoard() {
 			// Generate a new random board
 			Random random = new Random();

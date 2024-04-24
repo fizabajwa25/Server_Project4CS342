@@ -3,6 +3,7 @@ import java.io.Serializable;
 public class Message implements Serializable {
     private static final long serialVersionUID = 42L;
     private int[][] boardState;
+    private int[][] oppBoardState;
     private MessageType type;
     private int playerIndex;
     private int row;
@@ -15,6 +16,8 @@ public class Message implements Serializable {
         GET_BOARD,
         SET_OPPONENT_BOARD,
         GET_OPPONENT_BOARD,
+        SET_BOARD_PLAYER_VS_PLAYER,
+        GET_BOARD_PLAYER_VS_PLAYER,
         TRY_MOVE,
         HIT,
         SHOT_FIRED,
@@ -44,6 +47,12 @@ public class Message implements Serializable {
 
     public void setBoardState(int[][] boardState) {
         this.boardState = boardState;
+    }
+    public int[][] getOppBoardState(){
+        return oppBoardState;
+    }
+    public void setOppBoardState(int[][] oppBoardState){
+        this.oppBoardState = oppBoardState;
     }
 
     public int getPlayerIndex() {
