@@ -10,7 +10,12 @@ import java.util.Arrays;
 import java.util.function.Consumer;
 
 import javafx.application.Platform;
+import javafx.geometry.Insets;
 import javafx.scene.control.ListView;
+import javafx.scene.layout.GridPane;
+import javafx.scene.paint.Color;
+import javafx.scene.shape.Rectangle;
+import javafx.scene.text.Text;
 /*
  * Clicker: A: I really get it    B: No idea what you are talking about
  * C: kind of following
@@ -32,6 +37,8 @@ public class Server {
 	private int[][][] playerGrids = new int[2][GRID_SIZE][GRID_SIZE];
 	private boolean[][][] shotsFired = new boolean[2][GRID_SIZE][GRID_SIZE];
 	private boolean gameActive = false;
+	private Rectangle[][] gridRectangles;
+	private GridPane gridPane;
 
 
 	Server(Consumer<Serializable> call) {
@@ -129,6 +136,9 @@ public class Server {
 					// send back board and message type "GET_BOARD"
 					handleSetBoard(data);
 					break;
+				case SET_OPPONENT_BOARD:
+					handleSetOpponentBoard(data);
+					break;
 				case SHOT_FIRED:
 					// Extract shot data from the message
 					int playerIndex = data.getPlayerIndex();
@@ -165,9 +175,8 @@ public class Server {
 
 
 		private void handleSetBoard(Message data) throws IOException {
-			// Process the board sent by the client
+			System.out.println("do i reach set baord?");
 			int[][] boardState = data.getBoardState();
-			// Perform any necessary operations with the board, such as validation, saving, etc.
 
 			// Send the processed board back to the client
 			for (ClientThread client : clients) {
@@ -178,6 +187,27 @@ public class Server {
 		public void sendBoard(int[][] boardState) throws IOException {
 			Message response = new Message(Message.MessageType.GET_BOARD, boardState);
 			out.writeObject(response);
+		}
+
+		public void sendOppBoard(int[][] boardState) throws IOException {
+			Message response = new Message(Message.MessageType.GET_OPPONENT_BOARD, boardState);
+			out.writeObject(response);
+		}
+
+		private void handleSetOpponentBoard(Message data) throws IOException {
+			int[][] opponentBoardState = generateRandomBoard();
+			for (ClientThread client : clients) {
+				client.sendOppBoard(opponentBoardState);
+				System.out.println("sending board: " + Arrays.deepToString(opponentBoardState));
+			}
+		}
+		private int[][] generateRandomBoard() {
+			// Generate a new random board
+			Random random = new Random();
+			int[][] boardState = new int[GRID_SIZE][GRID_SIZE];
+			// Logic to randomly populate the board with ships
+			addRandomShips();
+			return boardState;
 		}
 
 
@@ -322,6 +352,107 @@ public class Server {
 			} else {
 				return false; // Miss
 			}
+		}
+
+
+
+
+
+
+
+
+
+
+
+
+
+		private GridPane createGridPane() {
+			GridPane gridPane = new GridPane();
+			gridPane.setPadding(new Insets(10));
+			gridPane.setHgap(2);
+			gridPane.setVgap(2);
+
+			gridRectangles = new Rectangle[GRID_SIZE][GRID_SIZE];
+
+			// Add labels to the grid
+			for (int row = 0; row < GRID_SIZE; row++) {
+				Text rowLabel = new Text(String.valueOf(row + 1));
+				rowLabel.setFill(Color.WHITE);
+				gridPane.add(rowLabel, 0, row + 1);
+				for (int col = 0; col < GRID_SIZE; col++) {
+					if (row == 0) {
+						Text colLabel = new Text(String.valueOf((char) ('A' + col)));
+						colLabel.setFill(Color.WHITE);
+//					colLabel.setWrappingWidth(new Insets(0, 5, 0, 0));
+						gridPane.add(colLabel, col + 1, 0);
+					}
+					Rectangle rectangle = new Rectangle(30, 30);
+					rectangle.setFill(Color.LIGHTBLUE);
+					gridRectangles[row][col] = rectangle;
+					gridPane.add(rectangle, col + 1, row + 1);
+				}
+			}
+			return gridPane;
+		}
+
+
+		private int[][] addRandomShips() {
+			Random random = new Random();
+			// Define the ships
+			int[][] ships = {
+					{5, random.nextInt(GRID_SIZE - 4)},  // Carrier (5 holes)
+					{4, random.nextInt(GRID_SIZE - 3)},  // Battleship (4 holes)
+					{3, random.nextInt(GRID_SIZE - 2)},  // Cruiser (3 holes)
+					{3, random.nextInt(GRID_SIZE - 2)},  // Submarine (3 holes)
+					{2, random.nextInt(GRID_SIZE - 1)}   // Destroyer (2 holes)
+			};
+
+			// Clear existing ship placements
+			clearGridPane(gridPane);
+
+			for (int[] ship : ships) {
+				int size = ship[0];
+				int startX = ship[1];
+				int startY = random.nextInt(GRID_SIZE);
+
+				Color color = getRandomColor(); // Generate a unique random color for each ship
+//				shipColors.add(color);
+
+				boolean canPlaceShip;
+				do {
+					canPlaceShip = true;
+					for (int i = 0; i < size; i++) {
+						if (startX + i >= GRID_SIZE || gridRectangles[startY][startX + i].getFill() != Color.LIGHTBLUE) {
+							// Ship cannot be placed because a cell is already occupied or it exceeds grid boundary
+							canPlaceShip = false;
+							startX = random.nextInt(GRID_SIZE - size + 1);
+							startY = random.nextInt(GRID_SIZE);
+							break;
+						}
+					}
+				} while (!canPlaceShip);
+
+				for (int i = 0; i < size; i++) {
+					Rectangle rectangle = gridRectangles[startY][startX + i];
+					rectangle.setFill(color);
+				}
+			}
+			return ships;
+		}
+
+		private void clearGridPane(GridPane gridPane) {
+			// Clear all ship placements (rectangles filled with colors)
+			for (int row = 0; row < GRID_SIZE; row++) {
+				for (int col = 0; col < GRID_SIZE; col++) {
+					Rectangle rectangle = gridRectangles[row][col];
+					rectangle.setFill(Color.LIGHTBLUE); // Reset cell color
+				}
+			}
+		}
+
+		private Color getRandomColor() {
+			Random random = new Random();
+			return Color.rgb(random.nextInt(256), random.nextInt(256), random.nextInt(256));
 		}
 	}
 }

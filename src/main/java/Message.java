@@ -13,6 +13,8 @@ public class Message implements Serializable {
     public enum MessageType {
         SET_BOARD,
         GET_BOARD,
+        SET_OPPONENT_BOARD,
+        GET_OPPONENT_BOARD,
         TRY_MOVE,
         HIT,
         SHOT_FIRED,
