@@ -41,42 +41,43 @@ public class Server {
 	private GridPane gridPane;
 
 
+
 	Server(Consumer<Serializable> call) {
 
 		callback = call;
 		server = new TheServer();
 		server.start();
 	}
-	public void handleNewClient(Socket clientSocket) {
-		// Create a new ClientThread instance for the new client
-		ClientThread newClient = new ClientThread(clientSocket, count);
-
-		// Add the new client to the list of connected clients
-		clients.add(newClient);
-
-		// Assign opponents to the new client and existing clients
-		assignOpponents();
-
-		// Start the client thread
-		newClient.start();
-
-		// Increment the client count
-		count++;
-	}
-
-	private void assignOpponents() {
-		// Check if there are at least two clients connected
-		if (clients.size() >= 2) {
-			// Get the last two clients from the list
-			ClientThread client1 = clients.get(clients.size() - 1);
-			ClientThread client2 = clients.get(clients.size() - 2);
-
-			// Assign each client as an opponent to the other
-			client1.setOpponent(client2);
-			client2.setOpponent(client1);
-		}
-		// You can extend this logic to handle more complex scenarios
-	}
+//	public void handleNewClient(Socket clientSocket) {
+//		// Create a new ClientThread instance for the new client
+//		ClientThread newClient = new ClientThread(clientSocket, count);
+//
+//		// Add the new client to the list of connected clients
+//		clients.add(newClient);
+//
+//		// Assign opponents to the new client and existing clients
+//		assignOpponents();
+//
+//		// Start the client thread
+//		newClient.start();
+//
+//		// Increment the client count
+//		count++;
+//	}
+//
+//	private void assignOpponents() {
+//		// Check if there are at least two clients connected
+//		if (clients.size() >= 2) {
+//			// Get the last two clients from the list
+//			ClientThread client1 = clients.get(clients.size() - 1);
+//			ClientThread client2 = clients.get(clients.size() - 2);
+//
+//			// Assign each client as an opponent to the other
+//			client1.setOpponent(client2);
+//			client2.setOpponent(client1);
+//		}
+//		// You can extend this logic to handle more complex scenarios
+//	}
 
 
 
@@ -94,7 +95,7 @@ public class Server {
 					callback.accept("client has connected to server: " + "client #" + count);
 					clients.add(c);
 					c.start();
-					assignOpponents();
+//					assignOpponents();
 
 					count++;
 
@@ -130,19 +131,42 @@ public class Server {
 			}
 		}
 
-		private ClientThread opponent;
+//		private ClientThread opponent;
+//
+//		public void setOpponent(ClientThread opponent) {
+//			this.opponent = opponent;
+//		}
+//		private int[][] playerBoardState;
+//
+//		public void setPlayerBoardState(int[][] boardState) {
+//			this.playerBoardState = boardState;
+//		}
+//
+//		public int[][] getPlayerBoardState() {
+//			return playerBoardState;
+//		}
 
-		public void setOpponent(ClientThread opponent) {
-			this.opponent = opponent;
-		}
 		private int[][] playerBoardState;
+		private int[][] opponentBoardState;
 
 		public void setPlayerBoardState(int[][] boardState) {
 			this.playerBoardState = boardState;
 		}
 
-		public int[][] getPlayerBoardState() {
-			return playerBoardState;
+		public void setOpponentBoardState(int[][] boardState) {
+			this.opponentBoardState = boardState;
+		}
+
+		public void sendPlayerBoard() throws IOException {
+			// Send the player's own board state to the client
+			Message response = new Message(Message.MessageType.GET_BOARD_PLAYER_VS_PLAYER, playerBoardState);
+			out.writeObject(response);
+		}
+
+		public void sendOpponentBoard() throws IOException {
+			// Send the opponent's board state to the client
+			Message response = new Message(Message.MessageType.GET_OPPONENT_BOARD, opponentBoardState);
+			out.writeObject(response);
 		}
 
 
@@ -250,13 +274,23 @@ public class Server {
 			// Get the board states for both the client and the opponent
 			int[][] clientBoardState = data.getBoardState();
 
-			// Set the board state for both the client and the opponent
-			setPlayerBoardState(clientBoardState);
-			clients.get(opponentIndex).setPlayerBoardState(clientBoardState);
+			// Separate the board states for the client and the opponent
+			if (clientIndex == 0) {
+				// If this client is the first one, it has its own board state
+				setPlayerBoardState(clientBoardState);
+				// The opponent's board state is set for the second client
+				clients.get(opponentIndex).setOpponentBoardState(clientBoardState);
+			} else {
+				// If this client is the second one, it has its own board state
+				setPlayerBoardState(clientBoardState);
+				// The opponent's board state is set for the first client
+				clients.get(opponentIndex).setOpponentBoardState(clientBoardState);
+			}
 
-			// Send messages containing both board states to the client and the opponent
-			sendBoardPlayervPlayer(clientBoardState);
-			clients.get(opponentIndex).sendBoardPlayervPlayer(clientBoardState);
+			// Send each player's board to the respective clients
+			sendPlayerBoard();
+			clients.get(opponentIndex).sendOpponentBoard();
+
 			System.out.println("opponent's board: " + Arrays.deepToString(clientBoardState));
 			System.out.println("client's board: " + Arrays.deepToString(clientBoardState));
 		}
@@ -265,10 +299,10 @@ public class Server {
 //			this.playerBoardState = boardState;
 //		}
 
-		public void setOpponentBoardState(int[][] boardState) {
-			// Set the board state for the opponent
-			this.opponent.playerBoardState = boardState;
-		}
+//		public void setOpponentBoardState(int[][] boardState) {
+//			// Set the board state for the opponent
+//			this.opponent.playerBoardState = boardState;
+//		}
 		public void sendBoardPlayervPlayer(int[][] boardState) throws IOException {
 			// Create a message containing the board state
 			Message response = new Message(Message.MessageType.GET_BOARD_PLAYER_VS_PLAYER, boardState);
