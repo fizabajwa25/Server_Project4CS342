@@ -20,6 +20,12 @@ import javafx.scene.text.Text;
  * Clicker: A: I really get it    B: No idea what you are talking about
  * C: kind of following
  */
+/*-------------------------------------------
+Program 4: BattleShip
+Course: CS 342, Spring 2024, UIC
+System: IntelliJ
+Author: Aleena Mehmood, Fiza Bajwa, Ashika Shekar
+------------------------------------------- */
 
 public class Server {
 
@@ -121,7 +127,7 @@ public class Server {
 			this.count = count;
 		}
 
-		public void updateClients(String message) {
+		public void updateClients(Message message) {
 			for (int i = 0; i < clients.size(); i++) {
 				ClientThread t = clients.get(i);
 				try {
@@ -181,7 +187,7 @@ public class Server {
 				System.out.println("Streams not open");
 			}
 
-			updateClients("new client on server: client #" + count);
+//			updateClients("new client on server: client #" + count);
 
 			while (true) {
 				try {
@@ -190,11 +196,11 @@ public class Server {
 					System.out.println("type sent from client:" + data.getType());
 					HandleData(data);
 //							System.out.println("sent from client" + Arrays.deepToString(data.getBoardState()));
-					updateClients("client #" + count + " said: " + data);
+//					updateClients("client #" + count + " said: " + data);
 
 				} catch (Exception e) {
 					callback.accept("OOOOPPs...Something wrong with the socket from client: " + count + "....closing down!");
-					updateClients("Client #" + count + " has left the server!");
+//					updateClients("Client #" + count + " has left the server!");
 					clients.remove(this);
 					break;
 				}
@@ -213,40 +219,21 @@ public class Server {
 				case SET_BOARD_PLAYER_VS_PLAYER:
 					handleSetBoardPlayerVsPlayer(data);
 					break;
-				case SHOT_FIRED:
-					// Extract shot data from the message
+				case PLAYER_TURN:
 					int playerIndex = data.getPlayerIndex();
 					int row = data.getRow();
 					int col = data.getCol();
-
+					boolean playersTurn = data.isPlayersTurn();
+					boolean oppsTurn = data.isOppsTurn();
 					// Handle the shot
-					boolean hit = clients.get(playerIndex).handleShot(playerIndex, row, col);
-
-					// Send shot result to clients if necessary
-					// For example, you could create a new message and send it to all clients
-					// with the result of the shot
-
-					// For now, let's just print the result
-					if (hit) {
-						callback.accept("Player " + playerIndex + " hit at row " + row + ", column " + col);
-					} else {
-						callback.accept("Player " + playerIndex + " missed at row " + row + ", column " + col);
-					}
-
-					// Switch turns
-					currentPlayerIndex = (currentPlayerIndex + 1) % 2;
-
-					// Inform clients whose turn it is
-					for (ClientThread client : clients) {
-						client.sendTurn(currentPlayerIndex);
-					}
+					boolean hit = handleShot(playerIndex, row, col);
+					boolean isOppsTurn = !playersTurn;
 					break;
 				default:
 					callback.accept("Waiting for proper message from client #" + count);
 					break;
 			}
 		}
-
 
 		private void handleSetBoard(Message data) throws IOException {
 			System.out.println("do i reach set baord?");
@@ -507,35 +494,46 @@ public class Server {
 
 
 		public boolean handleShot(int playerIndex, int row, int col) {
-			if (!gameActive) {
-				return false; // Game not active
-			}
+			int opponentIndex = (playerIndex + 1) % 2; // Determine the opponent's index
 
-			int[][] opponentGrid = playerGrids[(playerIndex + 1) % 2]; // Opponent's grid
+			// Check if the shot hits a ship on the opponent's board
+			boolean hit = (opponentBoardState[row][col] == 1);
 
-			if (opponentGrid[row][col] == HIT) {
-				return false; // Spot already hit
-			}
-
-			shotsFired[playerIndex][row][col] = true; // Mark the spot as fired
-
-			if (opponentGrid[row][col] == SHIP) {
-				opponentGrid[row][col] = HIT; // Mark the spot as hit
-				return true; // Hit
+			// Create a message indicating the result of the shot
+			Message message;
+			if (hit) {
+				// Mark the position as hit
+//				playerBoardState[row][col] = 1;
+				message = new Message(Message.MessageType.HIT, true, false);
 			} else {
-				return false; // Miss
+				// Mark the position as missed
+//				playerBoardState[row][col] = 0;
+				message = new Message(Message.MessageType.MISS, true, false);
 			}
+
+			// Inform both players about the result of the shot
+			updateClients(message);
+
+			return hit;
+//			if (!gameActive) {
+//				return false; // Game not active
+//			}
+//
+//			int[][] opponentGrid = playerGrids[(playerIndex + 1) % 2]; // Opponent's grid
+//
+//			if (opponentGrid[row][col] == HIT) {
+//				return false; // Spot already hit
+//			}
+//
+//			shotsFired[playerIndex][row][col] = true; // Mark the spot as fired
+//
+//			if (opponentGrid[row][col] == SHIP) {
+//				opponentGrid[row][col] = HIT; // Mark the spot as hit
+//				return true; // Hit
+//			} else {
+//				return false; // Miss
+//			}
 		}
-
-
-
-
-
-
-
-
-
-
 
 
 
