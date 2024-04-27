@@ -189,11 +189,11 @@ public class Server {
 			sendPlayerBoard();
 			clients.get(opponentIndex).sendOpponentBoard();
 		}
-		public void handleShot(int row, int col) {
+		public void handleShot(int row, int col) throws IOException {
 			Message message;
 			int clientIndex = clients.indexOf(this);
 			int opponentIndex = (clientIndex == 0) ? 1 : 0;
-			boolean hit = (opponentBoardState[row][col] == SHIP);
+			boolean hit = (opponentBoardState[row][col] == 1);
 
 			if (player1Turn && clientIndex == 0 || !player1Turn && clientIndex == 1) {
 				if (hit) {
@@ -205,7 +205,8 @@ public class Server {
 			} else {
 				message = new Message(Message.MessageType.NOT_YOUR_TURN);
 			}
-			updateClients(message);
+//			updateClients(message);
+			out.writeObject(message);
 		}
 	}
 }
