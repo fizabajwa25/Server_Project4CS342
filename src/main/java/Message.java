@@ -21,6 +21,7 @@ public class Message implements Serializable {
         SET_BOARD_PLAYER_VS_PLAYER,
         GET_BOARD_PLAYER_VS_PLAYER,
         PLAYER_TURN,
+        NOT_YOUR_TURN,
         TRY_MOVE,
         HIT,
         SHOT_FIRED,
@@ -49,6 +50,13 @@ public class Message implements Serializable {
         this.playersTurn = playersTurn;
         this.oppsTurn = oppsTurn;
     }
+
+    public Message(MessageType type, int row, int col) {
+        this.type = type;
+        this.row = row;
+        this.col = col;
+    }
+
 
 
 
